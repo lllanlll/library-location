@@ -156,14 +156,16 @@ app.get('/api/borrowBooks', function (req, res) {
   let params = handleParams(req.url);
   // let params = 'sc1'
   let start_time = moment().format();
+  //改为2分测试 已测试
   let dead_time = moment().add(30, 'days').format();
   let time = [start_time, dead_time];
-  mysql_connec_borrow(req, res, params, time);
+  let state = 'normal';
+  mysql_connec_borrow(res, params, time, state);
 })
 
-function mysql_connec_borrow(req, res, params, time) {
-  const addSql = "insert into borrow_books(`user_name`, `Book_ID`, `Out_time`, `library_name`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`, `Dead_time`) values(?, ?, ?, ?, ?, ?, ?, ?, ?)";
-  const addParams = [params[0].name, params[1].bookId, time[0], params[2].library, params[3].bookName, params[4].bookType, params[5].bookAuthor, params[6].bookPublisher, time[1]];
+function mysql_connec_borrow(res, params, time, state) {
+  const addSql = "insert into borrow_books(`user_name`, `Book_ID`, `Out_time`, `library_name`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`, `Dead_time`, `state`) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  const addParams = [params[0].name, params[1].bookId, time[0], params[2].library, params[3].bookName, params[4].bookType, params[5].bookAuthor, params[6].bookPublisher, time[1], state];
   const deleteSql = `delete from book where Book_ID = "${params[1].bookId}"`;
   //在borrow_book中添加记录
   connection.query(addSql, addParams, function (err, result) {
@@ -229,6 +231,7 @@ function mysql_connec_return(req, res, params) {
   })
 }
 
+//获取用户详情
 app.get('/api/getUsersDetails', function(req, res) {
   let params = handleParams(req.url);
   mysql_connec_showUsersDetail(req, res, params);
@@ -237,6 +240,26 @@ app.get('/api/getUsersDetails', function(req, res) {
 function mysql_connec_showUsersDetail(req, res, params) {
   const searchSql = `select * from users where name = "${params[0].name}"`;
   connection.query(searchSql, function (err, result) {
+    if (err) {
+      console.log('[SELECT ERROR] - ', err.message);
+      return;
+    } else {
+      res.send(handleRowData(result));
+      res.end();
+      return;
+    }
+  })
+}
+
+//更改逾期的图书的状态
+app.get('/api/changeState', function(req, res) {
+  let params = handleParams(req.url);
+  mysql_connec_changeState(res, params);
+})
+
+function mysql_connec_changeState(res, params) {
+  const updateSql = `update borrow_books set state = "overdue" where user_name = "${params[0].name}" and Book_ID = "${params[1].book_id}"`;
+  connection.query(updateSql, function (err, result) {
     if (err) {
       console.log('[SELECT ERROR] - ', err.message);
       return;

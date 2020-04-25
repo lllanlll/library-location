@@ -1,14 +1,15 @@
 <template>
   <div>
-    <div class="account">
-      <div class="account-left">
+    <div class="Main-account">
+      <div class="Main-account-left">
         <span>
           当前账户:
           <span class="el-icon-s-custom"></span>
           {{ name }}
         </span>
       </div>
-      <div class="account-right">
+      <div class="Main-account-right">
+        <span @click="getBorrowBooksTime">测试接口</span>
         <span @click="quit">切换账户</span>
       </div>
     </div>
@@ -24,7 +25,7 @@
             <el-button @click="resetForm('ruleForm')">重置</el-button>
           </el-form-item>
         </el-form>
-        <div class="search_library_books_show">
+        <div class="Main-search_library_books_show">
           <el-table :data="library_books_result" :border="true" style="width: 100%">
             <el-table-column prop="Book_ID" label="编号" width="180"></el-table-column>
             <el-table-column prop="Book_name" label="书名" width="180"></el-table-column>
@@ -40,8 +41,13 @@
         </div>
       </el-tab-pane>
       <el-tab-pane label="已借书目" name="borrow">
-        <div class="show_borrow_books">
-          <el-table :data="borrow_books" :border="true" style="width: 100%">
+        <div class="Main-show_borrow_books">
+          <el-table
+            :data="borrow_books"
+            :border="true"
+            style="width: 100%"
+            :row-class-name="booksTableRowClassName"
+          >
             <el-table-column prop="Book_ID" label="书编号" width="100"></el-table-column>
             <el-table-column prop="library_name" label="所属图书馆" width="100"></el-table-column>
             <el-table-column prop="Out_time" label="借出时间"></el-table-column>
@@ -50,6 +56,7 @@
             <el-table-column prop="Book_type" label="书类型" width="100"></el-table-column>
             <el-table-column prop="Book_author" label="作者" width="100"></el-table-column>
             <el-table-column prop="Book_publisher" label="出版社" width="100"></el-table-column>
+            <el-table-column prop="state" label="当前状态" width="100"></el-table-column>
             <el-table-column fixed="right" label="操作" width="100">
               <template slot-scope="scope">
                 <el-button @click="returnBooks(scope.row)" type="text" size="small">还书</el-button>
@@ -95,6 +102,7 @@ export default {
     };
   },
   methods: {
+    //tabs切换调用函数
     handleClick(tab, event) {
       if (tab.name == "borrow") {
         this.getBorrowBooks();
@@ -103,14 +111,16 @@ export default {
         this.getDetails();
       }
     },
+    //调取图书馆藏书接口
     getBooks() {
       let params = {
         province: this.ruleForm.location
-      }
+      };
       this.apiMethodsGet("/api/getBooks", params).then(res => {
         this.library_books_result = res.data;
       });
     },
+    //调取用户详情接口
     getDetails() {
       let params = {
         name: this.name
@@ -119,6 +129,7 @@ export default {
         this.details = res.data[0];
       });
     },
+    //校验是否输入正确
     submitForm(formName) {
       this.$refs[formName].validate(valid => {
         if (valid) {
@@ -129,17 +140,20 @@ export default {
         }
       });
     },
+    //重置图书馆缩写
     resetForm(formName) {
       this.$refs[formName].resetFields();
       if (formName == "ruleForm") {
         this.library_books_result = [];
       }
     },
+    //切换账号是退出至登陆界面
     quit() {
       this.$router.push({
         name: "Login"
       });
     },
+    //借书接口
     borrow(book) {
       if (this.name) {
         let params = {
@@ -152,13 +166,14 @@ export default {
           bookPublisher: book.Book_publisher
         };
         this.apiMethodsGet("/api/borrowBooks", params).then(res => {
-          console.log(res);
+          // console.log(res);
           this.getBooks();
         });
       } else {
         alert("请先登陆再借书");
       }
     },
+    //调取借书表 并展示
     getBorrowBooks() {
       let params = {
         name: this.name
@@ -170,8 +185,14 @@ export default {
           item.Out_time = this.formatUTC(item.Out_time);
           item.Dead_time = this.formatUTC(item.Dead_time);
         });
+        this.$notify.info({
+          title: "消息",
+          message: this.name + " 若逾期未还书 将缴纳5元/天的逾期费用!请注意",
+          duration: 0
+        });
       });
     },
+    //调取还书接口
     returnBooks(book) {
       if (this.name) {
         let params = {
@@ -183,13 +204,69 @@ export default {
           library: book.library_name
         };
         this.apiMethodsGet("api/returnBooks", params).then(res => {
-          console.log(res);
+          // console.log(res);
           this.getBorrowBooks();
         });
       } else {
         alert("请先登陆再还书");
       }
     },
+    //检验是否逾期
+    checkTime(timeArray) {
+      //timeArray: [{name, time}]
+      let nowTime = this.$moment().format();
+      let timeDiff = [];
+      // console.log(timeArray);
+      timeArray.forEach(item => {
+        let ele = {
+          name: item.name,
+          book_id: item.book_id,
+          seconds: this.$moment(item.Dead_time).diff(nowTime, "seconds")
+        };
+        timeDiff.push(ele);
+      });
+      // console.log(timeDiff);
+      timeDiff.forEach(item => {
+        if (item.seconds < 0) {
+          let params = {
+            name: item.name,
+            book_id: item.book_id
+          };
+          this.apiMethodsGet("/api/changeState", params).then(res => {
+            this.$notify({
+              title: "失败",
+              message: this.name + " 请尽快缴纳欠款并还书!",
+              type: "warning"
+            });
+          });
+        }
+      });
+    },
+    //调取还书时间
+    getBorrowBooksTime() {
+      let params = {
+        name: this.name
+      };
+      this.apiMethodsGet("/api/getBorrowBooks", params).then(res => {
+        let endTime = [];
+        res.data.forEach(item => {
+          let ele = {
+            name: item.user_name,
+            Dead_time: item.Dead_time,
+            book_id: item.Book_ID
+          };
+          endTime.push(ele);
+        });
+        this.checkTime(endTime);
+      });
+    },
+    //api封装方法
+    apiMethodsGet(str, params) {
+      return this.$http.get(str, {
+        params
+      });
+    },
+    //时间格式化函数
     formatUTC(utc_datetime) {
       // 转为正常的时间格式 年-月-日 时:分:秒
       var T_pos = utc_datetime.indexOf("T");
@@ -216,20 +293,37 @@ export default {
         .replace(/日/g, " ");
       return beijing_datetime;
     },
-    apiMethodsGet(str, params) {
-      return this.$http.get(str, {
-        params
+    //是否逾期的表格样式表示
+    booksTableRowClassName({ row, rowIndex }) {
+      if (row.state == "normal") {
+        return "Main-normal";
+      } else if (row.state == "overdue") {
+        return "Main-overdue";
+      }
+      return "";
+    },
+    //登陆时提示欢迎消息
+    welcome() {
+      this.$notify({
+        title: "成功",
+        message: this.name + " 欢迎登陆系统",
+        type: "success"
       });
     }
   },
   mounted() {
     this.name = this.$route.params.name;
+    let params = {
+      name: this.name
+    };
+    this.welcome();
+    this.getBorrowBooksTime();
   }
 };
 </script>
 
-<style scoped>
-.account {
+<style>
+.Main-account {
   height: 50px;
   font-size: 30px;
   border: 1px solid rgba(88, 159, 248, 0.6);
@@ -239,7 +333,15 @@ export default {
   align-items: center;
 }
 
-.account-right span {
+.Main-account-right span {
   cursor: pointer;
+}
+
+.el-table .Main-overdue {
+  background: oldlace;
+}
+
+.el-table .Main-normal {
+  background: #f0f9eb;
 }
 </style>
