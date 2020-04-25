@@ -155,14 +155,15 @@ function mysql_connec_search(req, res, params) {
 app.get('/api/borrowBooks', function (req, res) {
   let params = handleParams(req.url);
   // let params = 'sc1'
-  let time = moment().format();
-  //   console.log(params, time)
+  let start_time = moment().format();
+  let dead_time = moment().add(30, 'days').format();
+  let time = [start_time, dead_time];
   mysql_connec_borrow(req, res, params, time);
 })
 
 function mysql_connec_borrow(req, res, params, time) {
-  const addSql = "insert into borrow_books(`user_name`, `Book_ID`, `Out_time`, `library_name`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`) values(?, ?, ?, ?, ?, ?, ?, ?)";
-  const addParams = [params[0].name, params[1].bookId, time, params[2].library, params[3].bookName, params[4].bookType, params[5].bookAuthor, params[6].bookPublisher];
+  const addSql = "insert into borrow_books(`user_name`, `Book_ID`, `Out_time`, `library_name`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`, `Dead_time`) values(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  const addParams = [params[0].name, params[1].bookId, time[0], params[2].library, params[3].bookName, params[4].bookType, params[5].bookAuthor, params[6].bookPublisher, time[1]];
   const deleteSql = `delete from book where Book_ID = "${params[1].bookId}"`;
   //在borrow_book中添加记录
   connection.query(addSql, addParams, function (err, result) {
@@ -228,6 +229,24 @@ function mysql_connec_return(req, res, params) {
   })
 }
 
+app.get('/api/getUsersDetails', function(req, res) {
+  let params = handleParams(req.url);
+  mysql_connec_showUsersDetail(req, res, params);
+})
+
+function mysql_connec_showUsersDetail(req, res, params) {
+  const searchSql = `select * from users where name = "${params[0].name}"`;
+  connection.query(searchSql, function (err, result) {
+    if (err) {
+      console.log('[SELECT ERROR] - ', err.message);
+      return;
+    } else {
+      res.send(handleRowData(result));
+      res.end();
+      return;
+    }
+  })
+}
 
 var server = app.listen(8888, function () { //监听端口
   console.log("访问地址为 localhost:8888")

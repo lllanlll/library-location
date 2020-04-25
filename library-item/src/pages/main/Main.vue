@@ -45,7 +45,8 @@
             <el-table-column prop="Book_ID" label="书编号" width="100"></el-table-column>
             <el-table-column prop="library_name" label="所属图书馆" width="100"></el-table-column>
             <el-table-column prop="Out_time" label="借出时间"></el-table-column>
-						<el-table-column prop="Book_name" label="书名" width="100"></el-table-column>
+            <el-table-column prop="Dead_time" label="应还时间"></el-table-column>
+            <el-table-column prop="Book_name" label="书名" width="100"></el-table-column>
             <el-table-column prop="Book_type" label="书类型" width="100"></el-table-column>
             <el-table-column prop="Book_author" label="作者" width="100"></el-table-column>
             <el-table-column prop="Book_publisher" label="出版社" width="100"></el-table-column>
@@ -57,8 +58,15 @@
           </el-table>
         </div>
       </el-tab-pane>
-      <el-tab-pane label="账户详情" name="three">
-
+      <el-tab-pane label="账户详情" name="details">
+        <div class="details_name">
+          <span>账户名:</span>
+          <span>{{ details.name }}</span>
+        </div>
+        <div class="details_balance">
+          <span>余额:</span>
+          <span>{{ details.balance }}</span>
+        </div>
       </el-tab-pane>
       <el-tab-pane label="定时任务补偿" name="four">定时任务补偿</el-tab-pane>
     </el-tabs>
@@ -82,7 +90,8 @@ export default {
       },
       library_books_result: [],
       borrow_books: [],
-      name: ""
+      name: "",
+      details: {}
     };
   },
   methods: {
@@ -90,24 +99,25 @@ export default {
       if (tab.name == "borrow") {
         this.getBorrowBooks();
       }
+      if (tab.name == "details") {
+        this.getDetails();
+      }
     },
     getBooks() {
-      this.$http
-        .get("/api/getBooks", {
-          params: {
-            province: this.ruleForm.location
-          }
-        })
-        .then(response => (this.library_books_result = response.data));
+      let params = {
+        province: this.ruleForm.location
+      }
+      this.apiMethodsGet("/api/getBooks", params).then(res => {
+        this.library_books_result = res.data;
+      });
     },
     getDetails() {
-      this.$http
-        .get("/api/getUsersDetails", {
-          params: {
-            name: this.name
-          }
-        })
-        .then(response => (console.log(response)));
+      let params = {
+        name: this.name
+      };
+      this.apiMethodsGet("/api/getUsersDetails", params).then(res => {
+        this.details = res.data[0];
+      });
     },
     submitForm(formName) {
       this.$refs[formName].validate(valid => {
@@ -132,58 +142,50 @@ export default {
     },
     borrow(book) {
       if (this.name) {
-        this.$http
-          .get("api/borrowBooks", {
-            params: {
-              name: this.name,
-              bookId: book.Book_ID,
-							library: book.library_name,
-							bookName: book.Book_name,
-							bookType: book.Book_type,
-							bookAuthor: book.Book_author,
-							bookPublisher: book.Book_publisher
-            }
-          })
-          .then(res => {
-            console.log(res);
-            this.getBooks();
-          });
+        let params = {
+          name: this.name,
+          bookId: book.Book_ID,
+          library: book.library_name,
+          bookName: book.Book_name,
+          bookType: book.Book_type,
+          bookAuthor: book.Book_author,
+          bookPublisher: book.Book_publisher
+        };
+        this.apiMethodsGet("/api/borrowBooks", params).then(res => {
+          console.log(res);
+          this.getBooks();
+        });
       } else {
         alert("请先登陆再借书");
       }
     },
     getBorrowBooks() {
-      this.$http
-        .get("/api/getBorrowBooks", {
-          params: {
-            name: this.name
-          }
-        })
-        .then(response => {
-          this.borrow_books = response.data;
-          let len = this.borrow_books.length;
-          this.borrow_books.forEach(item => {
-            item.Out_time = this.formatUTC(item.Out_time);
-          });
+      let params = {
+        name: this.name
+      };
+      this.apiMethodsGet("/api/getBorrowBooks", params).then(res => {
+        this.borrow_books = res.data;
+        let len = this.borrow_books.length;
+        this.borrow_books.forEach(item => {
+          item.Out_time = this.formatUTC(item.Out_time);
+          item.Dead_time = this.formatUTC(item.Dead_time);
         });
+      });
     },
     returnBooks(book) {
       if (this.name) {
-        this.$http
-          .get("api/returnBooks", {
-            params: {
-              bookId: book.Book_ID,
-							bookName: book.Book_name,
-							bookType: book.Book_type,
-							bookAuthor: book.Book_author,
-							bookPublisher: book.Book_publisher,
-							library: book.library_name
-            }
-          })
-          .then(res => {
-            console.log(res);
-            this.getBorrowBooks();
-          });
+        let params = {
+          bookId: book.Book_ID,
+          bookName: book.Book_name,
+          bookType: book.Book_type,
+          bookAuthor: book.Book_author,
+          bookPublisher: book.Book_publisher,
+          library: book.library_name
+        };
+        this.apiMethodsGet("api/returnBooks", params).then(res => {
+          console.log(res);
+          this.getBorrowBooks();
+        });
       } else {
         alert("请先登陆再还书");
       }
@@ -213,6 +215,11 @@ export default {
         .replace(/年|月/g, "-")
         .replace(/日/g, " ");
       return beijing_datetime;
+    },
+    apiMethodsGet(str, params) {
+      return this.$http.get(str, {
+        params
+      });
     }
   },
   mounted() {
