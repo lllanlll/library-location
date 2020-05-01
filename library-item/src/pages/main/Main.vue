@@ -75,7 +75,6 @@
           <span>{{ details.balance }}</span>
         </div>
       </el-tab-pane>
-      <el-tab-pane label="定时任务补偿" name="four">定时任务补偿</el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -187,8 +186,7 @@ export default {
         });
         this.$notify.info({
           title: "消息",
-          message: this.name + " 若逾期未还书 将缴纳5元/天的逾期费用!请注意",
-          duration: 0
+          message: this.name + " 若逾期未还书 将缴纳5元/天的逾期费用!请注意"
         });
       });
     },
@@ -201,10 +199,19 @@ export default {
           bookType: book.Book_type,
           bookAuthor: book.Book_author,
           bookPublisher: book.Book_publisher,
-          library: book.library_name
+          library: book.library_name,
+          balance: this.details.balance,
+          name: this.name
         };
         this.apiMethodsGet("api/returnBooks", params).then(res => {
-          // console.log(res);
+          console.log(res.data);
+          if (res.data == "connec") {
+            this.$notify.info({
+              title: "消息",
+              message: '余额不足 请联系管理员'
+            });
+          }
+          this.getDetails();
           this.getBorrowBooks();
         });
       } else {
@@ -230,12 +237,14 @@ export default {
         if (item.seconds < 0) {
           let params = {
             name: item.name,
-            book_id: item.book_id
+            book_id: item.book_id,
+            seconds: -item.seconds
           };
+          let pay = Math.ceil(params.seconds / 86400) * 5;
           this.apiMethodsGet("/api/changeState", params).then(res => {
             this.$notify({
-              title: "失败",
-              message: this.name + " 请尽快缴纳欠款并还书!",
+              title: "通知",
+              message: this.name + ` 请尽快缴纳欠款${pay}并还书!`,
               type: "warning"
             });
           });
@@ -316,6 +325,7 @@ export default {
     let params = {
       name: this.name
     };
+    this.getDetails();
     this.welcome();
     this.getBorrowBooksTime();
   }

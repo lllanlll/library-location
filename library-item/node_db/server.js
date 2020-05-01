@@ -7,7 +7,7 @@ var bodyParser = require('body-parser'); //调用模板
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
   extended: false
-})); //6-9用bodyParser处理post数据
+})); //lines6-9用bodyParser处理post数据
 var mysql = require("mysql");
 var connection = mysql.createConnection({ //配置参数，然后添加你的数据库里面的表
   host: 'localhost',
@@ -157,7 +157,7 @@ app.get('/api/borrowBooks', function (req, res) {
   // let params = 'sc1'
   let start_time = moment().format();
   //改为2分测试 已测试
-  let dead_time = moment().add(30, 'days').format();
+  let dead_time = moment().add(1, 'minutes').format();
   let time = [start_time, dead_time];
   let state = 'normal';
   mysql_connec_borrow(res, params, time, state);
@@ -211,23 +211,84 @@ app.get('/api/returnBooks', function (req, res) {
 })
 
 function mysql_connec_return(req, res, params) {
-  // console.log(params);
+  let balance = params[6].balance;
+  const searchSql = `select 1 from payment_record where book_id = "${params[0].bookId}"`;
+  const searchPaySql = `select pay from payment_record where book_id = "${params[0].bookId}"`;
+  const searchMoneySql = `select money from payment_record where book_id = "${params[0].bookId}"`;
+  const updateUsersSql = `update users set balance = "${params[6].balance}" where name = "${params[7].name}"`;
   const addSql = "insert into book(`Book_ID`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`, `library_name`) values(?, ?, ?, ?, ?, ?)";
   const addParams = [params[0].bookId, params[1].bookName, params[2].bookType, params[3].bookAuthor, params[4].bookPublisher, params[5].library];
   const deleteSql = `delete from borrow_books where Book_ID = "${params[0].bookId}"`;
-  connection.query(addSql, addParams, function (err, result) {
+  connection.query(searchSql, function (err, result1) {
     if (err) {
-      console.log("[insert error]-", err.message);
+      console.log('[SELECT1 ERROR] - ', err.message);
       return;
-    }
-    res.end('return success');
-    connection.query(deleteSql, function (err, result) {
-      if (err) {
-        console.log("[insert error]-", err.message);
-        return;
+    } else { //检测是否存在记录
+      if (result1.length) {
+        connection.query(searchPaySql, function(err, result2) {
+          if (err) {
+            console.log('[SELECT2 ERROR] - ', err.message);
+            return;
+          } else { // 检测是否还未支付
+            //未支付
+            if(result2[0].pay == 0) {
+              connection.query(searchMoneySql, function(err, result3) {
+                if (err) {
+                  console.log('[SELECT3 ERROR] - ', err.message);
+                  return;
+                } else {// 扣除余额
+                  balance -= result3[0].money;
+                  if(balance < 0) {
+                    res.send('connec');
+                  } else {// 更新欠款表
+                    connection.query(updateUsersSql, function (err, result4) {
+                      if (err) {
+                        console.log('[SELECT ERROR] - ', err.message);
+                        return;
+                      } 
+                    })
+                    connection.query(addSql, addParams, function (err, result) {
+                      //还书至书库
+                      if (err) {
+                        console.log("[insert error]-", err.message);
+                        return;
+                      } else {
+                        res.end('return success');
+                        connection.query(deleteSql, function (err, result) {
+                          if (err) {
+                            console.log("[insert error]-", err.message);
+                            return;
+                          }
+                        })
+                        return;
+                      }
+                    })
+                  }
+                }
+              })
+            } else {
+              //已支付
+              connection.query(addSql, addParams, function (err, result) {
+                //还书至书库
+                if (err) {
+                  console.log("[insert error]-", err.message);
+                  return;
+                } else {
+                  res.end('return success');
+                  connection.query(deleteSql, function (err, result) {
+                    if (err) {
+                      console.log("[insert error]-", err.message);
+                      return;
+                    }
+                  })
+                  return;
+                }
+              })
+            }
+          }
+        })
       }
-    })
-    return;
+    }
   })
 }
 
@@ -255,6 +316,7 @@ function mysql_connec_showUsersDetail(req, res, params) {
 app.get('/api/changeState', function(req, res) {
   let params = handleParams(req.url);
   mysql_connec_changeState(res, params);
+  mysql_connec_payment(res, params);
 })
 
 function mysql_connec_changeState(res, params) {
@@ -263,10 +325,41 @@ function mysql_connec_changeState(res, params) {
     if (err) {
       console.log('[SELECT ERROR] - ', err.message);
       return;
-    } else {
-      res.send(handleRowData(result));
-      res.end();
+    } 
+  })
+}
+
+function mysql_connec_payment(res, params) {
+  let seconds = params[2].seconds;
+  let days = Math.ceil(seconds / 86400);
+  let pay = days * 5;
+  const insertSql = "insert into payment_record(`name`, `money`, `pay`, `book_id`) values(?, ?, ?, ?)";
+  const searchSql = `select 1 from payment_record where name = "${params[0].name}"`;
+  const updateSql =  `update payment_record set money = "${pay}" where name = "${params[0].name}"`;
+  const addParams = [params[0].name, pay, 0, params[1].book_id];
+  connection.query(searchSql, function (err, result) {
+    if (err) {
+      console.log('[SELECT ERROR] - ', err.message);
       return;
+    } else {
+      if(result.length) {
+        connection.query(updateSql, function (err, result) {
+          if (err) {
+            console.log('[SELECT ERROR] - ', err.message);
+            return;
+          } 
+        })
+        res.end('false insert but updated');
+      } else {
+        connection.query(insertSql, addParams, function (err, result) {
+          if (err) {
+            console.log('[SELECT ERROR] - ', err.message);
+            return;
+          } else {
+            res.end('true insert');
+          }
+        })
+      }
     }
   })
 }
