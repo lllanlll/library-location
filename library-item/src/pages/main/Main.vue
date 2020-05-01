@@ -1,18 +1,18 @@
 <template>
-  <div>
-    <div class="Main-account">
-      <div class="Main-account-left">
-        <span>
-          当前账户:
-          <span class="el-icon-s-custom"></span>
-          {{ name }}
-        </span>
+  <div class="Main-page">
+      <div class="Main-account">
+        <div class="Main-account-left">
+          <span>
+            当前账户:
+            <span class="el-icon-s-custom"></span>
+            {{ name }}
+          </span>
+        </div>
+        <div class="Main-account-right">
+          <span @click="quit">切换账户</span>
+        </div>
       </div>
-      <div class="Main-account-right">
-        <span @click="getBorrowBooksTime">测试接口</span>
-        <span @click="quit">切换账户</span>
-      </div>
-    </div>
+      <div class="border"></div>
 
     <el-tabs type="border-card" v-model="activeNames" @tab-click="handleClick">
       <el-tab-pane label="搜索图书馆藏书" name="search">
@@ -208,7 +208,7 @@ export default {
           if (res.data == "connec") {
             this.$notify.info({
               title: "消息",
-              message: '余额不足 请联系管理员'
+              message: "余额不足 请联系管理员"
             });
           }
           this.getDetails();
@@ -333,6 +333,16 @@ export default {
 </script>
 
 <style>
+.Main-page {
+  margin: 12px;
+  padding: 12px;
+}
+
+.border {
+  height: 3px;
+  background: linear-gradient(70deg,#0ebeff,#ffdd40,#ae63e4,#47cf73);
+}
+
 .Main-account {
   height: 50px;
   font-size: 30px;
@@ -342,6 +352,7 @@ export default {
   justify-content: space-between;
   align-items: center;
 }
+
 
 .Main-account-right span {
   cursor: pointer;

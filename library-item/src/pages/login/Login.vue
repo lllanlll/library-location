@@ -86,11 +86,13 @@ export default {
 </script>
 
 <style scoped>
+
 .login-page {
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  background:  linear-gradient(to right, #ffdde1, #ee9ca7);
 }
 
 .box-card {

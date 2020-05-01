@@ -157,7 +157,7 @@ app.get('/api/borrowBooks', function (req, res) {
   // let params = 'sc1'
   let start_time = moment().format();
   //改为2分测试 已测试
-  let dead_time = moment().add(1, 'minutes').format();
+  let dead_time = moment().add(30, 'days').format();
   let time = [start_time, dead_time];
   let state = 'normal';
   mysql_connec_borrow(res, params, time, state);
@@ -266,25 +266,25 @@ function mysql_connec_return(req, res, params) {
                   }
                 }
               })
-            } else {
-              //已支付
-              connection.query(addSql, addParams, function (err, result) {
-                //还书至书库
-                if (err) {
-                  console.log("[insert error]-", err.message);
-                  return;
-                } else {
-                  res.end('return success');
-                  connection.query(deleteSql, function (err, result) {
-                    if (err) {
-                      console.log("[insert error]-", err.message);
-                      return;
-                    }
-                  })
-                  return;
-                }
-              })
             }
+          }
+        })
+      } else {
+        //无记录
+        connection.query(addSql, addParams, function (err, result) {
+          //还书至书库
+          if (err) {
+            console.log("[insert error]-", err.message);
+            return;
+          } else {
+            res.end('return success');
+            connection.query(deleteSql, function (err, result) {
+              if (err) {
+                console.log("[insert error]-", err.message);
+                return;
+              }
+            })
+            return;
           }
         })
       }

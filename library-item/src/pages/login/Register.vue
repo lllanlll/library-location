@@ -106,6 +106,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(to right, #a7bfe8, #6190e8);
 }
 
 .box-card {
