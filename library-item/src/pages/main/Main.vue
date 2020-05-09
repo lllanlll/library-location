@@ -1,18 +1,18 @@
 <template>
   <div class="Main-page">
-      <div class="Main-account">
-        <div class="Main-account-left">
-          <span>
-            当前账户:
-            <span class="el-icon-s-custom"></span>
-            {{ name }}
-          </span>
-        </div>
-        <div class="Main-account-right">
-          <span @click="quit">切换账户</span>
-        </div>
+    <div class="Main-account">
+      <div class="Main-account-left">
+        <span>
+          当前账户:
+          <span class="el-icon-s-custom"></span>
+          {{ name }}
+        </span>
       </div>
-      <div class="border"></div>
+      <div class="Main-account-right">
+        <span @click="quit">切换账户</span>
+      </div>
+    </div>
+    <div class="border"></div>
 
     <el-tabs type="border-card" v-model="activeNames" @tab-click="handleClick">
       <el-tab-pane label="搜索图书馆藏书" name="search">
@@ -97,7 +97,8 @@ export default {
       library_books_result: [],
       borrow_books: [],
       name: "",
-      details: {}
+      details: {},
+      firstNotifyOverdue: 1,//第一次进系统时给值为1 用来设置只提醒一次
     };
   },
   methods: {
@@ -166,6 +167,19 @@ export default {
         };
         this.apiMethodsGet("/api/borrowBooks", params).then(res => {
           // console.log(res);
+          if (res.status == 200) {
+            this.$notify({
+              title: "成功",
+              message: "借书成功",
+              type: "success"
+            });
+          } else {
+            this.$notify({
+              title: "警告",
+              message: "后台服务出错 联系管理员",
+              type: "warning"
+            });
+          }
           this.getBooks();
         });
       } else {
@@ -184,10 +198,13 @@ export default {
           item.Out_time = this.formatUTC(item.Out_time);
           item.Dead_time = this.formatUTC(item.Dead_time);
         });
-        this.$notify.info({
-          title: "消息",
-          message: this.name + " 若逾期未还书 将缴纳5元/天的逾期费用!请注意"
-        });
+        if(this.firstNotifyOverdue > 0) {
+          this.$notify.info({
+            title: "消息",
+            message: this.name + " 若逾期未还书 将缴纳5元/天的逾期费用!请注意"
+          });
+          this.firstNotifyOverdue = 0;
+        }
       });
     },
     //调取还书接口
@@ -205,10 +222,23 @@ export default {
         };
         this.apiMethodsGet("api/returnBooks", params).then(res => {
           console.log(res.data);
-          if (res.data == "connec") {
-            this.$notify.info({
-              title: "消息",
-              message: "余额不足 请联系管理员"
+          if (res.status == 200) {
+            this.$notify({
+              title: "成功",
+              message: "还书成功",
+              type: "success"
+            });
+            if (res.data == "connec") {
+              this.$notify.info({
+                title: "消息",
+                message: "余额不足 请联系管理员"
+              });
+            }
+          } else {
+            this.$notify({
+              title: "警告",
+              message: "后台服务出错 联系管理员",
+              type: "warning"
             });
           }
           this.getDetails();
@@ -325,6 +355,7 @@ export default {
     let params = {
       name: this.name
     };
+    this.firstNotifyOverdue = 1;
     this.getDetails();
     this.welcome();
     this.getBorrowBooksTime();
@@ -340,7 +371,7 @@ export default {
 
 .border {
   height: 3px;
-  background: linear-gradient(70deg,#0ebeff,#ffdd40,#ae63e4,#47cf73);
+  background: linear-gradient(70deg, #0ebeff, #ffdd40, #ae63e4, #47cf73);
 }
 
 .Main-account {
@@ -352,7 +383,6 @@ export default {
   justify-content: space-between;
   align-items: center;
 }
-
 
 .Main-account-right span {
   cursor: pointer;

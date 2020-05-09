@@ -215,7 +215,6 @@ function mysql_connec_return(req, res, params) {
   const searchSql = `select 1 from payment_record where book_id = "${params[0].bookId}"`;
   const searchPaySql = `select pay from payment_record where book_id = "${params[0].bookId}"`;
   const searchMoneySql = `select money from payment_record where book_id = "${params[0].bookId}"`;
-  const updateUsersSql = `update users set balance = "${params[6].balance}" where name = "${params[7].name}"`;
   const addSql = "insert into book(`Book_ID`, `Book_name`, `Book_type`, `Book_author`, `Book_publisher`, `library_name`) values(?, ?, ?, ?, ?, ?)";
   const addParams = [params[0].bookId, params[1].bookName, params[2].bookType, params[3].bookAuthor, params[4].bookPublisher, params[5].library];
   const deleteSql = `delete from borrow_books where Book_ID = "${params[0].bookId}"`;
@@ -238,6 +237,7 @@ function mysql_connec_return(req, res, params) {
                   return;
                 } else {// 扣除余额
                   balance -= result3[0].money;
+                  const updateUsersSql = `update users set balance = "${balance}" where name = "${params[7].name}"`;
                   if(balance < 0) {
                     res.send('connec');
                   } else {// 更新欠款表
