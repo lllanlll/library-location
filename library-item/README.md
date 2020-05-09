@@ -8,8 +8,13 @@
 # install dependencies
 npm install
 
-# serve with hot reload at localhost:8080
+# vue start with hot reload at localhost:8080
 npm run dev
+
+# nodejs second terminal! localhost:8888
+cd node_db
+npm install
+nodemon server.js
 
 # build for production with minification
 npm run build
