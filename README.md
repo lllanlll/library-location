@@ -1,7 +1,7 @@
 # library-location
 library-location 地区图书管理系统
 
-# git clone ####
+# git clone https://github.com/lllanlll/library-location.git
 
 ## Build Setup
 
